@@ -10,8 +10,13 @@ const config = {
 const store = {
   state: {
     results:["something here"],
-    selectedMovie:{testing: "hi"},
-    isSearching: false
+    selectedMovie:{reviews:[]},
+    selectedTrailer:{},
+    isSearching: false,
+    isLoadingReviews: false,
+    reviews:[],
+    genres: [],
+    videos: []
   },
   setResults(val){
     console.log("setting results")
@@ -21,6 +26,15 @@ const store = {
     console.log("setting movie--------")
     this.state.selectedMovie = {}
     this.state.selectedMovie = val
+    this.setGenre(val.genres)
+  },
+  setGenre(genres){
+    this.state.genres = []
+
+    var that = this
+    setTimeout(function (){
+      that.state.genres = genres
+    }, 100)
   },
   movieQuery(term){
     //trigger activity indicator
@@ -43,14 +57,77 @@ const store = {
     router.push('/movie')
     http.getJSON("https://api.themoviedb.org/3/movie/"+id+"?api_key="+config.apikey).then(function (r) {
       console.dir(r)
-        that.setSelectedMovie(r)  
+        that.setSelectedMovie(r) 
+        that.getReviews() 
+        that.getVideos()
     }, function (e) {
         //// Argument (e) is Error!
         console.log(e);
     });
+  },
+  getReviews(){
+    var that = this
+    that.state.isLoadingReviews = true
+    http.getJSON("https://api.themoviedb.org/3/movie/"+this.state.selectedMovie.id+"/reviews?api_key="+config.apikey).then(function (r) {
+      //console.dir(r)
+      that.state.reviews = r.results
+      console.dir(that.state.reviews)
+      that.state.isLoadingReviews = false
+    }, function (e) {
+        //// Argument (e) is Error!
+        that.state.isLoadingReviews = false
+        console.log(e);
+    });
+  },
+  getVideos(){
+    var that = this
+    that.state.isTrailersLoading = true
+    http.getJSON("https://api.themoviedb.org/3/movie/"+this.state.selectedMovie.id+"/videos?api_key="+config.apikey).then(function (r) {
+      //console.dir(r)
+      that.state.videos = r.results
+      console.dir(that.state.reviews)
+      that.state.isTrailersLoading = false
+    }, function (e) {
+        //// Argument (e) is Error!
+        that.state.isTrailersLoading = false
+        console.log(e);
+    })
+  },
+  setSelectedTrailer(vid){
+    this.state.selectedTrailer = vid
   }
 }
-
+Vue.component('reviewList',{
+  template:`
+          <stack-layout>
+            <ListView v-if="reviews" class="list-group" for="review in reviews" style="height:1250px">
+              <v-template>
+                <FlexboxLayout flexDirection="row" class="list-group-item">
+                  <label :text="review.author"/>
+                  <Label :text="review.content" class="list-group-item-heading" style="width: 60%" />
+                </FlexboxLayout>
+              </v-template>
+            </ListView>
+            <label v-else text="There are no reviews yet" />
+          </stack-layout>`,
+  props:['reviews'],
+})
+Vue.component('trailerList',{
+  template:`
+          <stack-layout>
+            <label text="Trailers" />
+            <wrap-layout>
+              <image stretch="none" :src="'https://img.youtube.com/vi/'+video.key+'/mqdefault.jpg'" v-for="video in videos" :key="video.key" @tap="startTrailer(video)"/>
+            </wrap-layout>
+          </stack-layout>`,
+  props:['videos'],
+  methods:{
+    startTrailer(video){
+      store.setSelectedTrailer(video)
+      this.$router.push('/trailer')
+    }
+  }
+})
 const SearchPage = {
   template: `
     <stack-layout>
@@ -105,7 +182,7 @@ const Movie = {
               </wrap-layout>
               <wrap-layout>
                 <label text="Genre: " fontWeight="Bold" />
-                <label v-for="(genre, index) in sharedState.selectedMovie.genres" :text="(index!=sharedState.selectedMovie.genres.length)?genre.name+', ' :genre.name" :key="genre.id" />
+                <label v-for="(genre, index) in sharedState.genres" :text="(index!==(sharedState.genres.length-1))?genre.name+', ' :genre.name" :key="genre.id" />
               </wrap-layout>
               <wrap-layout>
                 <label text="Duration: " fontWeight="Bold" />
@@ -115,7 +192,9 @@ const Movie = {
               <label text="View Trailer" @tap="showTrailer"/> 
             </stack-layout>
         </stack-layout>
+        <trailer-list :videos="sharedState.videos"/>
         <label :text="sharedState.selectedMovie.overview" textWrap="true"/>
+        <review-list :reviews="reviews"/>
         </stack-layout>
       </ScrollView>
     `,
@@ -137,6 +216,11 @@ const Movie = {
       },
       minutes(){
         return parseInt(this.sharedState.selectedMovie.runtime) %60 + 'mins'
+      },
+      reviews(){
+        console.log('dumping reviews--------')
+        console.dir(this.sharedState.reviews)
+        return this.sharedState.reviews
       }
     },
     methods:{
@@ -173,7 +257,7 @@ const Trailer = {
   `,
   data(){
     return {
-      youtube:'https://www.youtube.com/watch?v=BZAVtDR-SQs'
+      youtube:'https://www.youtube.com/embed/'+store.state.selectedTrailer.key
     }
   }
 }
