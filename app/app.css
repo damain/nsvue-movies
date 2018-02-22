@@ -1,4 +1,3 @@
-@import 'nativescript-theme-core/css/core.light.css';
 
 /* Your CSS goes here */
 
@@ -8,4 +7,25 @@
 
 .odd {
     color: blue;
+}
+
+.image-thumb{
+  margin: 2;
+
+}
+
+.image-half{
+  width: 33%;
+}
+
+.body-padding{
+  padding: 5;
+}
+label{
+  font-size: 20%;
+}
+
+.title{
+  font-weight: 900;
+  font-size: 20%;
 }
